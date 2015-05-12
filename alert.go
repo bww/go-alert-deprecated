@@ -37,28 +37,34 @@ import (
   "github.com/kisielk/raven-go/raven"
 )
 
-var debug bool = false
-var sentryDSN string
-var sentryName string
+var config Config
 var sentry *raven.Client
+
+/**
+ * Alert configuration
+ */
+type Config struct {
+  Debug       bool
+  SentryDSN   string
+  SentryName  string
+}
 
 /**
  * Init
  */
-func init() {
-  var err error
+func Init(c Config) {
   
-  flag.BoolVar  (&debug,      "debug",        false,    "Enable debugging mode.")
-  flag.StringVar(&sentryDSN,  "sentry:dsn",   "",       "Log errors to Sentry at the specified API key/DSN (e.g., https://ABC:XYZ@app.getsentry.com/12345).")
-  flag.StringVar(&sentryName, "sentry:name",  "main",   "Identify this logger Sentry with the specified name.")
-  
-  if sentryDSN != "" {
-    sentry, err = raven.NewClient(sentryDSN)
+  if c.SentryDSN != "" {
+    if c.SentryName == "" {
+      c.SentryName = "main"
+    }
+    sentry, err = raven.NewClient(c.SentryDSN)
     if err != nil {
       panic(err)
     }
   }
   
+  config = c
 }
 
 /**
@@ -92,6 +98,6 @@ func Errorf(f string, a ...interface{}) {
 func Error(m string) {
   log.Println(m)
   if sentry != nil {
-    sentry.Capture(&raven.Event{Message: m, Logger:sentryName})
+    sentry.Capture(&raven.Event{Message: m, Logger: config.SentryName})
   }
 }
