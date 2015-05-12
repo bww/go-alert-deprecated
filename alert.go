@@ -33,7 +33,6 @@ package alt
 import (
   "fmt"
   "log"
-  "flag"
   "github.com/kisielk/raven-go/raven"
 )
 
@@ -53,6 +52,7 @@ type Config struct {
  * Init
  */
 func Init(c Config) {
+  var err error
   
   if c.SentryDSN != "" {
     if c.SentryName == "" {
@@ -71,7 +71,7 @@ func Init(c Config) {
  * Log for debugging
  */
 func Debugf(f string, a ...interface{}) {
-  if debug {
+  if config.Debug {
     log.Printf(f, a...)
   }
 }
@@ -80,7 +80,7 @@ func Debugf(f string, a ...interface{}) {
  * Log for debugging
  */
 func Debug(m string) {
-  if debug {
+  if config.Debug {
     log.Print(m)
   }
 }
