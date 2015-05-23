@@ -45,7 +45,8 @@ var sentry *raven.Client
 type Config struct {
   Debug       bool
   SentryDSN   string
-  SentryName  string
+  Name        string
+  Tags        map[string]interface{}  // tags sent with every event
 }
 
 /**
@@ -89,15 +90,49 @@ func Debug(m string) {
  * Log to sentry
  */
 func Errorf(f string, a ...interface{}) {
-  Error(fmt.Sprintf(f, a...))
+  Error(fmt.Sprintf(f, a...), nil, nil)
 }
 
 /**
  * Log to sentry
  */
-func Error(m string) {
+func Error(m string, tags, extra map[string]interface{}) {
   log.Println(m)
+  
+  if tags != nil && len(tags) > 0 {
+    var t string
+    var i int
+    for k, v := range tags {
+      if i > 0 {
+        t += fmt.Sprintf(", %s = %v", k, v)
+      }else{
+        t += fmt.Sprintf("%s = %v", k, v)
+      }
+      i++
+    }
+    log.Printf("  # %s", t)
+  }
+  
+  if config.Tags != nil && len(config.Tags) > 0 {
+    if tags == nil {
+      tags = make(map[string]interface{})
+    }
+    for k, v := range config.Tags {
+      tags[k] = v
+    }
+  }
+  
+  if extra != nil {
+    var w, l int
+    for k, _ := range extra {
+      if l = len(k); l > w { w = l }
+    }
+    for k, v := range extra {
+      log.Printf(fmt.Sprintf("  > %%%ds: %%v", w), k, v)
+    }
+  }
+  
   if sentry != nil {
-    sentry.Capture(&raven.Event{Message: m, Logger: config.SentryName})
+    sentry.Capture(&raven.Event{Message:m, Logger:config.Name, Tags:tags, Extra:extra})
   }
 }
