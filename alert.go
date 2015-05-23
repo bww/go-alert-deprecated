@@ -33,7 +33,7 @@ package alt
 import (
   "fmt"
   "log"
-  "github.com/kisielk/raven-go/raven"
+  "github.com/bww/raven-go/raven"
 )
 
 var config Config
@@ -56,8 +56,8 @@ func Init(c Config) {
   var err error
   
   if c.SentryDSN != "" {
-    if c.SentryName == "" {
-      c.SentryName = "main"
+    if c.Name == "" {
+      c.Name = "main"
     }
     sentry, err = raven.NewClient(c.SentryDSN)
     if err != nil {
