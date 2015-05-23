@@ -54,7 +54,6 @@ type Config struct {
  */
 func Init(c Config) {
   var err error
-  
   if c.SentryDSN != "" {
     if c.Name == "" {
       c.Name = "main"
@@ -64,7 +63,6 @@ func Init(c Config) {
       panic(err)
     }
   }
-  
   config = c
 }
 
