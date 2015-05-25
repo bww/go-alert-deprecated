@@ -38,6 +38,7 @@ import (
 
 var config Config
 var sentry *raven.Client
+var queue chan *raven.Event
 
 /**
  * Alert configuration
@@ -47,6 +48,7 @@ type Config struct {
   SentryDSN   string
   Name        string
   Tags        map[string]interface{}  // tags sent with every event
+  Backlog     int
 }
 
 /**
@@ -58,10 +60,19 @@ func Init(c Config) {
     if c.Name == "" {
       c.Name = "main"
     }
+    
     sentry, err = raven.NewClient(c.SentryDSN)
     if err != nil {
       panic(err)
     }
+    
+    if c.Backlog > 0 {
+      queue = make(chan *raven.Event, c.Backlog)
+    }else{
+      queue = make(chan *raven.Event, 256)
+    }
+    
+    go run(queue)
   }
   config = c
 }
@@ -95,6 +106,33 @@ func Errorf(f string, a ...interface{}) {
  * Log to sentry
  */
 func Error(m string, tags, extra map[string]interface{}) {
+  e := event(m, tags, extra)
+  if queue != nil {
+    queue <- e
+  }
+}
+
+/**
+ * Log an event synchronously
+ */
+func Capturef(f string, a ...interface{}) {
+  Capture(fmt.Sprintf(f, a...), nil, nil)
+}
+
+/**
+ * Log an event synchronously
+ */
+func Capture(m string, tags, extra map[string]interface{}) {
+  e := event(m, tags, extra)
+  if sentry != nil {
+    sentry.Capture(e)
+  }
+}
+
+/**
+ * Create an event
+ */
+func event(m string, tags, extra map[string]interface{}) *raven.Event {
   log.Println(m)
   
   if tags != nil && len(tags) > 0 {
@@ -130,7 +168,14 @@ func Error(m string, tags, extra map[string]interface{}) {
     }
   }
   
-  if sentry != nil {
-    sentry.Capture(&raven.Event{Message:m, Logger:config.Name, Tags:tags, Extra:extra})
+  return &raven.Event{Message:m, Logger:config.Name, Tags:tags, Extra:extra}
+}
+
+/**
+ * Handle sentry
+ */
+func run(q <-chan *raven.Event) {
+  for e := range q {
+    sentry.Capture(e)
   }
 }
