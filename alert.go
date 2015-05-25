@@ -115,14 +115,14 @@ func Error(m string, tags, extra map[string]interface{}) {
 /**
  * Log an event synchronously
  */
-func Capturef(f string, a ...interface{}) {
-  Capture(fmt.Sprintf(f, a...), nil, nil)
+func Reportf(f string, a ...interface{}) {
+  Report(fmt.Sprintf(f, a...), nil, nil)
 }
 
 /**
  * Log an event synchronously
  */
-func Capture(m string, tags, extra map[string]interface{}) {
+func Report(m string, tags, extra map[string]interface{}) {
   e := event(m, tags, extra)
   if sentry != nil {
     sentry.Capture(e)
