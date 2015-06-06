@@ -49,6 +49,7 @@ type Config struct {
   Name        string
   Tags        map[string]interface{}  // tags sent with every event
   Backlog     int
+  Verbose     bool
 }
 
 /**
@@ -135,18 +136,20 @@ func Report(m string, tags, extra map[string]interface{}) {
 func event(m string, tags, extra map[string]interface{}) *raven.Event {
   log.Println(m)
   
-  if tags != nil && len(tags) > 0 {
-    var t string
-    var i int
-    for k, v := range tags {
-      if i > 0 {
-        t += fmt.Sprintf(", %s = %v", k, v)
-      }else{
-        t += fmt.Sprintf("%s = %v", k, v)
+  if config.Verbose {
+    if tags != nil && len(tags) > 0 {
+      var t string
+      var i int
+      for k, v := range tags {
+        if i > 0 {
+          t += fmt.Sprintf(", %s = %v", k, v)
+        }else{
+          t += fmt.Sprintf("%s = %v", k, v)
+        }
+        i++
       }
-      i++
+      log.Printf("  # %s", t)
     }
-    log.Printf("  # %s", t)
   }
   
   if config.Tags != nil && len(config.Tags) > 0 {
@@ -158,13 +161,15 @@ func event(m string, tags, extra map[string]interface{}) *raven.Event {
     }
   }
   
-  if extra != nil {
-    var w, l int
-    for k, _ := range extra {
-      if l = len(k); l > w { w = l }
-    }
-    for k, v := range extra {
-      log.Printf(fmt.Sprintf("  > %%%ds: %%v", w), k, v)
+  if config.Verbose {
+    if extra != nil {
+      var w, l int
+      for k, _ := range extra {
+        if l = len(k); l > w { w = l }
+      }
+      for k, v := range extra {
+        log.Printf(fmt.Sprintf("  > %%%ds: %%v", w), k, v)
+      }
     }
   }
   
