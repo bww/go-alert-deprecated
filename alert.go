@@ -168,7 +168,7 @@ func event(m string, tags, extra map[string]interface{}) *raven.Event {
     }
   }
   
-  return &raven.Event{Message:m, Logger:config.Name, Tags:tags, Extra:extra}
+  return &raven.Event{Message:m, Logger:config.Name, Tags:tags, Extra:extra, Stacktrace:raven.GenerateStacktrace()}
 }
 
 /**
