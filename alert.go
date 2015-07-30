@@ -40,6 +40,14 @@ var config Config
 var sentry *raven.Client
 var queue chan *raven.Event
 
+const (
+  LEVEL_FATAL   = "fatal"
+  LEVEL_ERROR   = "error"
+  LEVEL_WARNING = "warning"
+  LEVEL_INFO    = "info"
+  LEVEL_DEBUG   = "debug"
+)
+
 /**
  * Alert configuration
  */
@@ -97,34 +105,68 @@ func Debug(m string) {
 }
 
 /**
- * Log to sentry
+ * Log an informative message to sentry
  */
-func Errorf(f string, a ...interface{}) {
-  Error(fmt.Sprintf(f, a...), nil, nil)
+func Infof(f string, a ...interface{}) {
+  Info(fmt.Sprintf(f, a...), nil, nil)
 }
 
 /**
- * Log to sentry
+ * Log an informative message to sentry
  */
-func Error(m string, tags, extra map[string]interface{}) {
-  e := event(m, tags, extra)
+func Info(m string, tags, extra map[string]interface{}) {
+  e := event(m, LEVEL_INFO, tags, extra)
   if queue != nil {
     queue <- e
   }
 }
 
 /**
- * Log an event synchronously
+ * Log a warning to sentry
  */
-func Reportf(f string, a ...interface{}) {
-  Report(fmt.Sprintf(f, a...), nil, nil)
+func Warnf(f string, a ...interface{}) {
+  Warn(fmt.Sprintf(f, a...), nil, nil)
 }
 
 /**
- * Log an event synchronously
+ * Log a warning to sentry
  */
-func Report(m string, tags, extra map[string]interface{}) {
-  e := event(m, tags, extra)
+func Warn(m string, tags, extra map[string]interface{}) {
+  e := event(m, LEVEL_WARNING, tags, extra)
+  if queue != nil {
+    queue <- e
+  }
+}
+
+/**
+ * Log an error to sentry
+ */
+func Errorf(f string, a ...interface{}) {
+  Error(fmt.Sprintf(f, a...), nil, nil)
+}
+
+/**
+ * Log an error to sentry
+ */
+func Error(m string, tags, extra map[string]interface{}) {
+  e := event(m, LEVEL_ERROR, tags, extra)
+  if queue != nil {
+    queue <- e
+  }
+}
+
+/**
+ * Log a fatal error to sentry synchronously
+ */
+func Fatalf(f string, a ...interface{}) {
+  Fatal(fmt.Sprintf(f, a...), nil, nil)
+}
+
+/**
+ * Log a fatal error to sentry synchronously
+ */
+func Fatal(m string, tags, extra map[string]interface{}) {
+  e := event(m, LEVEL_FATAL, tags, extra)
   if sentry != nil {
     sentry.Capture(e)
   }
@@ -133,8 +175,8 @@ func Report(m string, tags, extra map[string]interface{}) {
 /**
  * Create an event
  */
-func event(m string, tags, extra map[string]interface{}) *raven.Event {
-  log.Println(m)
+func event(m, level string, tags, extra map[string]interface{}) *raven.Event {
+  log.Printf("[%s] %v", level, m)
   
   if config.Verbose {
     if tags != nil && len(tags) > 0 {
@@ -173,7 +215,7 @@ func event(m string, tags, extra map[string]interface{}) *raven.Event {
     }
   }
   
-  return &raven.Event{Message:m, Logger:config.Name, Tags:tags, Extra:extra, Stacktrace:raven.GenerateStacktrace()}
+  return &raven.Event{Message:m, Level:level, Logger:config.Name, Tags:tags, Extra:extra, Stacktrace:raven.GenerateStacktrace()}
 }
 
 /**
