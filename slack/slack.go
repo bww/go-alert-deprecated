@@ -71,7 +71,6 @@ func (t *slackTarget) Log(event *alt.Event) error {
     return nil // stop trying to log to this target if we produce too many errors
   }
   if event.Level <= t.Threshold {
-    fmt.Printf(">>>> {%v/%v} %v\n", int(event.Level), event.Level, event.Message)
     input := bytes.NewBuffer([]byte(fmt.Sprintf("*Momentum Error*: %v", event.Message)))
     
     req, err := http.NewRequest("POST", fmt.Sprintf("https://mess.slack.com/services/hooks/slackbot?token=%v&channel=%v", url.QueryEscape(t.Token), url.QueryEscape(fmt.Sprintf("#%v", t.Channel))), input)
