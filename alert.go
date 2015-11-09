@@ -77,6 +77,13 @@ func (l Level) String() string {
 }
 
 /**
+ * A logging target
+ */
+type Target interface {
+  Log(*Event)(error)
+}
+
+/**
  * A logging event
  */
 type Event struct {
@@ -86,13 +93,57 @@ type Event struct {
   Stacktrace  raven.Stacktrace
   Tags        map[string]interface{}
   Extra       map[string]interface{}
+  Display     string
 }
 
 /**
- * A logging target
+ * Create an event
  */
-type Target interface {
-  Log(*Event)(error)
+func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack raven.Stacktrace) *Event {
+  display := fmt.Sprintf("[%v] %v\n", level, m)
+  
+  if config.Verbose {
+    if tags != nil && len(tags) > 0 {
+      var t string
+      var i int
+      for k, v := range tags {
+        if i > 0 {
+          t += fmt.Sprintf(", %s = %v", k, v)
+        }else{
+          t += fmt.Sprintf("%s = %v", k, v)
+        }
+        i++
+      }
+      display += fmt.Sprintf(" # %s\n", t)
+    }
+  }
+  
+  if config.Tags != nil && len(config.Tags) > 0 {
+    if tags == nil {
+      tags = make(map[string]interface{})
+    }
+    for k, v := range config.Tags {
+      tags[k] = v
+    }
+  }
+  
+  if config.Verbose {
+    if extra != nil {
+      var w, l int
+      for k, v := range extra {
+        if v != nil {
+          if l = len(k); l > w { w = l }
+        }
+      }
+      for k, v := range extra {
+        if v != nil {
+          display += fmt.Sprintf(fmt.Sprintf(" + %%%ds: %%v\n", w), k, v)
+        }
+      }
+    }
+  }
+  
+  return &Event{Level:level, Message:m, Logger:config.Name, Tags:tags, Extra:extra, Stacktrace:stack, Display:display}
 }
 
 /**
@@ -172,10 +223,7 @@ func Infof(f string, a ...interface{}) {
  * Log an informative message to sentry
  */
 func Info(m string, tags, extra map[string]interface{}) {
-  e := event(LEVEL_INFO, m, tags, extra)
-  if queue != nil {
-    queue <- e
-  }
+  Enqueue(NewEvent(LEVEL_INFO, m, tags, extra, raven.GenerateStacktrace()))
 }
 
 /**
@@ -189,10 +237,7 @@ func Warnf(f string, a ...interface{}) {
  * Log a warning to sentry
  */
 func Warn(m string, tags, extra map[string]interface{}) {
-  e := event(LEVEL_WARNING, m, tags, extra)
-  if queue != nil {
-    queue <- e
-  }
+  Enqueue(NewEvent(LEVEL_WARNING, m, tags, extra, raven.GenerateStacktrace()))
 }
 
 /**
@@ -206,10 +251,7 @@ func Errorf(f string, a ...interface{}) {
  * Log an error to sentry
  */
 func Error(m string, tags, extra map[string]interface{}) {
-  e := event(LEVEL_ERROR, m, tags, extra)
-  if queue != nil {
-    queue <- e
-  }
+  Enqueue(NewEvent(LEVEL_ERROR, m, tags, extra, raven.GenerateStacktrace()))
 }
 
 /**
@@ -223,53 +265,17 @@ func Fatalf(f string, a ...interface{}) {
  * Log a fatal error to sentry synchronously
  */
 func Fatal(m string, tags, extra map[string]interface{}) {
-  capture(event(LEVEL_FATAL, m, tags, extra))
+  capture(NewEvent(LEVEL_FATAL, m, tags, extra, raven.GenerateStacktrace()))
 }
 
 /**
- * Create an event
+ * Enqueue an event
  */
-func event(level Level, m string, tags, extra map[string]interface{}) *Event {
-  log.Printf("[%v] %v", level, m)
-  
-  if config.Verbose {
-    if tags != nil && len(tags) > 0 {
-      var t string
-      var i int
-      for k, v := range tags {
-        if i > 0 {
-          t += fmt.Sprintf(", %s = %v", k, v)
-        }else{
-          t += fmt.Sprintf("%s = %v", k, v)
-        }
-        i++
-      }
-      log.Printf("  # %s", t)
-    }
+func Enqueue(e *Event) {
+  log.Print(e.Display)
+  if queue != nil {
+    queue <- e
   }
-  
-  if config.Tags != nil && len(config.Tags) > 0 {
-    if tags == nil {
-      tags = make(map[string]interface{})
-    }
-    for k, v := range config.Tags {
-      tags[k] = v
-    }
-  }
-  
-  if config.Verbose {
-    if extra != nil {
-      var w, l int
-      for k, _ := range extra {
-        if l = len(k); l > w { w = l }
-      }
-      for k, v := range extra {
-        log.Printf(fmt.Sprintf("  > %%%ds: %%v", w), k, v)
-      }
-    }
-  }
-  
-  return &Event{Level:level, Message:m, Logger:config.Name, Tags:tags, Extra:extra, Stacktrace:raven.GenerateStacktrace()}
 }
 
 /**
