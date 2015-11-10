@@ -114,7 +114,7 @@ func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack r
         }
         i++
       }
-      display += fmt.Sprintf(" # %s\n", t)
+      display += fmt.Sprintf("\t# %s\n", t)
     }
   }
   
@@ -137,7 +137,7 @@ func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack r
       }
       for k, v := range extra {
         if v != nil {
-          display += fmt.Sprintf(fmt.Sprintf(" + %%%ds: %%v\n", w), k, v)
+          display += fmt.Sprintf(fmt.Sprintf("\t+ %%%ds: %%v\n", w), k, v)
         }
       }
     }
