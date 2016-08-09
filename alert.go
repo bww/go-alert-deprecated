@@ -33,11 +33,9 @@ package alt
 import (
   "fmt"
   "log"
-  "github.com/bww/raven-go/raven"
 )
 
 var config Config
-var sentry *raven.Client
 var targets []Target
 var queue chan *Event
 
@@ -223,7 +221,7 @@ func Infof(f string, a ...interface{}) {
  * Log an informative message to sentry
  */
 func Info(m string, tags, extra map[string]interface{}) {
-  Enqueue(NewEvent(LEVEL_INFO, m, tags, extra, raven.GenerateStacktrace()))
+  Enqueue(NewEvent(LEVEL_INFO, m, tags, extra, generateStacktrace()))
 }
 
 /**
@@ -237,7 +235,7 @@ func Warnf(f string, a ...interface{}) {
  * Log a warning to sentry
  */
 func Warn(m string, tags, extra map[string]interface{}) {
-  Enqueue(NewEvent(LEVEL_WARNING, m, tags, extra, raven.GenerateStacktrace()))
+  Enqueue(NewEvent(LEVEL_WARNING, m, tags, extra, generateStacktrace()))
 }
 
 /**
@@ -251,7 +249,7 @@ func Errorf(f string, a ...interface{}) {
  * Log an error to sentry
  */
 func Error(m string, tags, extra map[string]interface{}) {
-  Enqueue(NewEvent(LEVEL_ERROR, m, tags, extra, raven.GenerateStacktrace()))
+  Enqueue(NewEvent(LEVEL_ERROR, m, tags, extra, generateStacktrace()))
 }
 
 /**
@@ -265,7 +263,7 @@ func Fatalf(f string, a ...interface{}) {
  * Log a fatal error to sentry synchronously
  */
 func Fatal(m string, tags, extra map[string]interface{}) {
-  capture(NewEvent(LEVEL_FATAL, m, tags, extra, raven.GenerateStacktrace()))
+  capture(NewEvent(LEVEL_FATAL, m, tags, extra, generateStacktrace()))
 }
 
 /**
@@ -291,11 +289,6 @@ func run(q <-chan *Event) {
  * Capture an event
  */
 func capture(e *Event) {
-  
-  if sentry != nil {
-    sentry.Capture(&raven.Event{Message:e.Message, Level:e.Level.Name(), Logger:e.Logger, Tags:e.Tags, Extra:e.Extra, Stacktrace:e.Stacktrace})
-  }
-  
   if targets != nil {
     for _, t := range targets {
       err := t.Log(e)
@@ -304,5 +297,4 @@ func capture(e *Event) {
       }
     }
   }
-  
 }

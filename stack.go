@@ -28,68 +28,72 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
-package slack
-
-import (
-  "fmt"
-  "time"
-  "github.com/bww/go-alert"
-)
-
-import (
-  "bytes"
-  "net/url"
-  "net/http"
-)
-
-const maxErrors = 5
-
-var client = &http.Client{Timeout:time.Second * 10}
+package alt
 
 /**
- * The slack logging target
+ * A stacktrace frame
  */
-type slackTarget struct {
-  Token     string
-  Channel   string
-  Prefix    string
-  Threshold alt.Level
-  errors    int
+type Frame struct {
+  Filename   string
+  LineNumber int
+  FilePath   string
+  Function   string
+  Module     string
 }
 
 /**
- * Create a new target
+ * A stacktrace
  */
-func New(token, channel, prefix string, threshold alt.Level) alt.Target {
-  return &slackTarget{token, channel, prefix, threshold, 0}
+type Stacktrace struct {
+  Frames []Frame
 }
 
 /**
- * Log to slack
+ * Generate a stacktrace
  */
-func (t *slackTarget) Log(event *alt.Event) error {
-  if t.errors > maxErrors {
-    return nil // stop trying to log to this target if we produce too many errors
-  }
-  if event.Level <= t.Threshold {
-    input := bytes.NewBuffer([]byte(fmt.Sprintf("*%v*: %v", t.Prefix, event.Message)))
+func generateStacktrace() Stacktrace {
+  return generateStacktraceWithOptions(1 /* skip this call itself */, nil)
+}
+
+/**
+ * Generate a stacktrace with options
+ */
+func generateStacktraceWithOptions(skip int, exclude []string) Stacktrace {
+  var stacktrace Stacktrace
+  
+  maxDepth := 10
+  for depth := 1 /* skip this call itself */ + skip; depth < maxDepth; depth++ {
     
-    req, err := http.NewRequest("POST", fmt.Sprintf("https://mess.slack.com/services/hooks/slackbot?token=%v&channel=%v", url.QueryEscape(t.Token), url.QueryEscape(fmt.Sprintf("#%v", t.Channel))), input)
-    if err != nil {
-      return err
-    }
-    rsp, err := client.Do(req)
-    if rsp != nil {
-      defer rsp.Body.Close()
-    }
-    if err != nil {
-      return err
+    pc, filePath, line, ok := runtime.Caller(depth)
+    if !ok {
+      break
     }
     
-    if rsp.StatusCode != http.StatusOK {
-      t.errors++
-      return fmt.Errorf("Could not log to Slack: %v", rsp.Status)
+    f := runtime.FuncForPC(pc)
+    fname := f.Name()
+    
+    if strings.Contains(fname, "runtime") {
+      break // Stop when reaching runtime
     }
+    if exclude != nil {
+      for _, e := range exclude {
+        if strings.Contains(fname, e) {
+          continue // Skip excluded calls
+        }
+      }
+    }
+    
+    var moduleName string
+    if strings.Contains(f.Name(), "(") {
+      components := strings.SplitN(f.Name(), ".(", 2)
+      fname = "(" + components[1]
+      moduleName = components[0]
+    }
+    
+    fileName := path.Base(filePath)
+    frame := Frame{Filename: fileName, LineNumber: line, FilePath: filePath, Function: fname, Module: moduleName}
+    stacktrace.Frames = append(stacktrace.Frames, frame)
   }
-  return nil
+  
+  return stacktrace
 }
