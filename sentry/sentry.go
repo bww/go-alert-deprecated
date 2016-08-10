@@ -39,8 +39,6 @@ import (
 
 const maxErrors = 5
 
-var client = &http.Client{Timeout:time.Second * 10}
-
 /**
  * The sentry logging target
  */
@@ -53,8 +51,12 @@ type sentryTarget struct {
 /**
  * Create a new target
  */
-func New(dsn string, threshold alt.Level) alt.Target {
-  return &sentryTarget{dsn, threshold, 0}
+func New(dsn string, threshold alt.Level) (alt.Target, error) {
+  sentry, err := raven.NewClient(dsn)
+  if err != nil {
+    return nil, err
+  }
+  return &sentryTarget{dsn, threshold, 0}, nil
 }
 
 /**

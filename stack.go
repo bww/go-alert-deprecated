@@ -30,6 +30,15 @@
 
 package alt
 
+import (
+  "fmt"
+  "path"
+  "strings"
+  "runtime"
+  "crypto/sha1"
+  "encoding/json"
+)
+
 /**
  * A stacktrace frame
  */
@@ -46,6 +55,14 @@ type Frame struct {
  */
 type Stacktrace struct {
   Frames []Frame
+}
+
+/**
+ * Fingerprint
+ */
+func (s Stacktrace) Fingerprint() string {
+  data, _ := json.Marshal(s)
+  return fmt.Sprintf("%x", sha1.Sum(data))
 }
 
 /**

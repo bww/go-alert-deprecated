@@ -74,6 +74,15 @@ func (l Level) String() string {
   return l.Name()
 }
 
+const (
+  TAG_ENVIRON   = "env"
+  TAG_HOSTNAME  = "host"
+  TAG_ERROR     = "error"
+  TAG_PLATFORM  = "platform"
+  TAG_COMPONENT = "component"
+  TAG_CONTEXT   = "context"
+)
+
 /**
  * A logging target
  */
@@ -88,7 +97,7 @@ type Event struct {
   Level       Level
   Message     string
   Logger      string
-  Stacktrace  raven.Stacktrace
+  Stacktrace  Stacktrace
   Tags        map[string]interface{}
   Extra       map[string]interface{}
   Display     string
@@ -97,7 +106,7 @@ type Event struct {
 /**
  * Create an event
  */
-func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack raven.Stacktrace) *Event {
+func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack Stacktrace) *Event {
   display := fmt.Sprintf("[%v] %v\n", level, m)
   
   if config.Verbose {
@@ -161,17 +170,8 @@ type Config struct {
  * Init
  */
 func Init(c Config) {
-  var err error
-  
   if c.Name == "" {
     c.Name = "main"
-  }
-  
-  if c.SentryDSN != "" {
-    sentry, err = raven.NewClient(c.SentryDSN)
-    if err != nil {
-      panic(err)
-    }
   }
   
   if c.Backlog > 0 {
