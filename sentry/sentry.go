@@ -31,8 +31,6 @@
 package sentry
 
 import (
-  "fmt"
-  "time"
   "github.com/bww/go-alert"
   "github.com/bww/raven-go/raven"
 )
@@ -43,7 +41,7 @@ const maxErrors = 5
  * The sentry logging target
  */
 type sentryTarget struct {
-  sentry    *raven.Client
+  client    *raven.Client
   Threshold alt.Level
   errors    int
 }
@@ -52,11 +50,11 @@ type sentryTarget struct {
  * Create a new target
  */
 func New(dsn string, threshold alt.Level) (alt.Target, error) {
-  sentry, err := raven.NewClient(dsn)
+  client, err := raven.NewClient(dsn)
   if err != nil {
     return nil, err
   }
-  return &sentryTarget{dsn, threshold, 0}, nil
+  return &sentryTarget{client, threshold, 0}, nil
 }
 
 /**
@@ -67,7 +65,14 @@ func (t *sentryTarget) Log(event *alt.Event) error {
     return nil // stop trying to log to this target if we produce too many errors
   }
   if event.Level <= t.Threshold {
-    sentry.Capture(&raven.Event{Message:e.Message, Level:e.Level.Name(), Logger:e.Logger, Tags:e.Tags, Extra:e.Extra, Stacktrace:convertStacktrace(e.Stacktrace)})
+    t.client.Capture(&raven.Event{
+      Message: event.Message,
+      Level: event.Level.Name(),
+      Logger: event.Logger,
+      Tags: event.Tags,
+      Extra: event.Extra,
+      Stacktrace:convertStacktrace(event.Stacktrace),
+    })
   }
   return nil
 }
@@ -76,11 +81,11 @@ func (t *sentryTarget) Log(event *alt.Event) error {
  * Convert stacktrace
  */
 func convertStacktrace(stack alt.Stacktrace) raven.Stacktrace {
-  if stack == nil || stack.Frames == nil || len(stack.Frames) < 1 {
+  if stack.Frames == nil || len(stack.Frames) < 1 {
     return raven.Stacktrace{Frames:[]raven.Frame{}}
   }
   
-  frames := make([]ravent.Frame, len(stack.Frames))
+  frames := make([]raven.Frame, len(stack.Frames))
   for i, e := range stack.Frames {
     frames[i] = raven.Frame{
       Filename: e.Filename,
