@@ -28,18 +28,13 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
-package slack
+package sentry
 
 import (
   "fmt"
   "time"
   "github.com/bww/go-alert"
-)
-
-import (
-  "bytes"
-  "net/url"
-  "net/http"
+  "github.com/bww/raven-go/raven"
 )
 
 const maxErrors = 5
@@ -47,12 +42,10 @@ const maxErrors = 5
 var client = &http.Client{Timeout:time.Second * 10}
 
 /**
- * The slack logging target
+ * The sentry logging target
  */
-type slackTarget struct {
-  Token     string
-  Channel   string
-  Prefix    string
+type sentryTarget struct {
+  sentry    *raven.Client
   Threshold alt.Level
   errors    int
 }
@@ -60,36 +53,41 @@ type slackTarget struct {
 /**
  * Create a new target
  */
-func New(token, channel, prefix string, threshold alt.Level) alt.Target {
-  return &slackTarget{token, channel, prefix, threshold, 0}
+func New(dsn string, threshold alt.Level) alt.Target {
+  return &sentryTarget{dsn, threshold, 0}
 }
 
 /**
  * Log to slack
  */
-func (t *slackTarget) Log(event *alt.Event) error {
+func (t *sentryTarget) Log(event *alt.Event) error {
   if t.errors > maxErrors {
     return nil // stop trying to log to this target if we produce too many errors
   }
   if event.Level <= t.Threshold {
-    input := bytes.NewBuffer([]byte(fmt.Sprintf("*%v*: %v", t.Prefix, event.Message)))
-    
-    req, err := http.NewRequest("POST", fmt.Sprintf("https://mess.slack.com/services/hooks/slackbot?token=%v&channel=%v", url.QueryEscape(t.Token), url.QueryEscape(fmt.Sprintf("#%v", t.Channel))), input)
-    if err != nil {
-      return err
-    }
-    rsp, err := client.Do(req)
-    if rsp != nil {
-      defer rsp.Body.Close()
-    }
-    if err != nil {
-      return err
-    }
-    
-    if rsp.StatusCode != http.StatusOK {
-      t.errors++
-      return fmt.Errorf("Could not log to Slack: %v", rsp.Status)
-    }
+    sentry.Capture(&raven.Event{Message:e.Message, Level:e.Level.Name(), Logger:e.Logger, Tags:e.Tags, Extra:e.Extra, Stacktrace:convertStacktrace(e.Stacktrace)})
   }
   return nil
+}
+
+/**
+ * Convert stacktrace
+ */
+func convertStacktrace(stack alt.Stacktrace) raven.Stacktrace {
+  if stack == nil || stack.Frames == nil || len(stack.Frames) < 1 {
+    return raven.Stacktrace{Frames:[]raven.Frame{}}
+  }
+  
+  frames := make([]ravent.Frame, len(stack.Frames))
+  for i, e := range stack.Frames {
+    frames[i] = raven.Frame{
+      Filename: e.Filename,
+      LineNumber: e.LineNumber,
+      FilePath: e.FilePath,
+      Function: e.Function,
+      Module: e.Module,
+    }
+  }
+  
+  return raven.Stacktrace{frames}
 }
