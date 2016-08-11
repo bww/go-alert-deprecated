@@ -33,13 +33,10 @@ package slack
 import (
   "fmt"
   "time"
-  "github.com/bww/go-alert"
-)
-
-import (
   "bytes"
   "net/url"
   "net/http"
+  "github.com/bww/go-alert"
 )
 
 const maxErrors = 5
@@ -60,8 +57,13 @@ type slackTarget struct {
 /**
  * Create a new target
  */
+<<<<<<< HEAD
 func New(token, channel, prefix string, threshold alt.Level) alt.Target {
   return &slackTarget{token, channel, prefix, threshold, 0}
+=======
+func New(token, channel, prefix string, threshold alt.Level) (alt.Target, error) {
+  return &slackTarget{token, channel, prefix, threshold, 0}, nil
+>>>>>>> c46659b9e9fe3fe6306c6ea631642f7fe37ef241
 }
 
 /**
