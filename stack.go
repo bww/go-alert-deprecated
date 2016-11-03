@@ -30,6 +30,8 @@
 
 package alt
 
+<<<<<<< HEAD
+=======
 import (
   "fmt"
   "path"
@@ -39,6 +41,7 @@ import (
   "encoding/json"
 )
 
+>>>>>>> c46659b9e9fe3fe6306c6ea631642f7fe37ef241
 /**
  * A stacktrace frame
  */
@@ -58,6 +61,8 @@ type Stacktrace struct {
 }
 
 /**
+<<<<<<< HEAD
+=======
  * Fingerprint
  */
 func (s Stacktrace) Fingerprint() string {
@@ -66,6 +71,7 @@ func (s Stacktrace) Fingerprint() string {
 }
 
 /**
+>>>>>>> c46659b9e9fe3fe6306c6ea631642f7fe37ef241
  * Generate a stacktrace
  */
 func generateStacktrace() Stacktrace {
