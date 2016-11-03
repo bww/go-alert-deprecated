@@ -33,6 +33,7 @@ package rollbar
 import (
   "fmt"
   "time"
+  "sync"
   "bytes"
   "net/http"
   "encoding/json"
@@ -132,9 +133,10 @@ type rollbarAgent struct {
 }
 
 /**
- * The slack logging target
+ * The rollbar logging target
  */
 type rollbarTarget struct {
+  sync.Mutex
   Token     string
   Threshold alt.Level
   errors    int
@@ -144,15 +146,18 @@ type rollbarTarget struct {
  * Create a new target
  */
 func New(token string, threshold alt.Level) (alt.Target, error) {
-  return &rollbarTarget{token, threshold, 0}, nil
+  return &rollbarTarget{sync.Mutex{}, token, threshold, 0}, nil
 }
 
 /**
  * Log to slack
  */
 func (t *rollbarTarget) Log(event *alt.Event) error {
-  if t.errors > maxErrors {
-    return nil // stop trying to log to this target if we produce too many errors
+  t.Lock()
+  ecap := t.errors - maxErrors
+  t.Unlock()
+  if ecap > 0 {
+    return nil
   }
   if event.Level <= t.Threshold {
     var request *rollbarRequest
@@ -219,7 +224,9 @@ func (t *rollbarTarget) Log(event *alt.Event) error {
     }
     
     if rsp.StatusCode != http.StatusOK {
+      t.Lock()
       t.errors++
+      t.Unlock()
       return fmt.Errorf("Could not log to Rollbar: %v", rsp.Status)
     }
   }

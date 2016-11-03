@@ -43,11 +43,11 @@ import (
  * A stacktrace frame
  */
 type Frame struct {
-  Filename   string
-  LineNumber int
-  FilePath   string
-  Function   string
-  Module     string
+  Filename    string
+  LineNumber  int
+  FilePath    string
+  Function    string
+  Module      string
 }
 
 /**
