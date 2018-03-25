@@ -100,9 +100,9 @@ type Event struct {
 func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack Stacktrace) *Event {
   var display string
   if config.PrintLevel {
-    display = fmt.Sprintf("<%v> %v", level, m)
+    display = fmt.Sprintf("[%v] %v", level, m)
   }else{
-    display = fmt.Sprintf("%v", m)
+    display = m
   }
   if l := len(display); l < 1 || display[l-1] != '\n' {
     display += "\n"
