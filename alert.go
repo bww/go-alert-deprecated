@@ -31,13 +31,16 @@
 package alt
 
 import (
+  "os"
   "fmt"
-  "log"
+  "time"
 )
 
 var config Config
 var targets []Target
 var queue chan *Event
+
+const dateFormat = "2006/01/02 15:04:05"
 
 const (
   LEVEL_FATAL Level = iota
@@ -51,14 +54,10 @@ var levelNames = []string{
   "fatal", "error", "warning", "info", "debug",
 }
 
-/**
- * A logging level
- */
+// A logging level
 type Level int
 
-/**
- * Obtain the level name
- */
+// Obtain the level name
 func (l Level) Name() string {
   if int(l) >= 0 && int(l) < len(levelNames) {
     return levelNames[int(l)]
@@ -67,9 +66,7 @@ func (l Level) Name() string {
   }
 }
 
-/**
- * Stringify
- */
+// Stringify
 func (l Level) String() string {
   return l.Name()
 }
@@ -83,16 +80,12 @@ const (
   TAG_CONTEXT   = "context"
 )
 
-/**
- * A logging target
- */
+// A logging target
 type Target interface {
   Log(*Event)(error)
 }
 
-/**
- * A logging event
- */
+// A logging event
 type Event struct {
   Level       Level
   Message     string
@@ -103,11 +96,17 @@ type Event struct {
   Display     string
 }
 
-/**
- * Create an event
- */
+// Create an event
 func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack Stacktrace) *Event {
-  display := fmt.Sprintf("[%v] %v\n", level, m)
+  var display string
+  if config.PrintLevel {
+    display = fmt.Sprintf("<%v> %v", level, m)
+  }else{
+    display = fmt.Sprintf("%v", m)
+  }
+  if l := len(display); l < 1 || display[l-1] != '\n' {
+    display += "\n"
+  }
   
   if config.Verbose {
     if tags != nil && len(tags) > 0 {
@@ -153,9 +152,7 @@ func NewEvent(level Level, m string, tags, extra map[string]interface{}, stack S
   return &Event{Level:level, Message:m, Logger:config.Name, Tags:tags, Extra:extra, Stacktrace:stack, Display:display}
 }
 
-/**
- * Alert configuration
- */
+// Alert configuration
 type Config struct {
   Debug       bool
   SentryDSN   string
@@ -163,12 +160,12 @@ type Config struct {
   Tags        map[string]interface{}  // tags sent with every event
   Backlog     int
   Verbose     bool
+  Timestamp   bool
+  PrintLevel  bool
   Targets     []Target
 }
 
-/**
- * Init
- */
+// Init
 func Init(c Config) {
   if c.Name == "" {
     c.Name = "main"
@@ -192,109 +189,99 @@ func Init(c Config) {
   config = c
 }
 
-/**
- * Log for debugging
- */
+// Log for debugging
 func Debugf(f string, a ...interface{}) {
   if config.Debug {
-    log.Printf(f, a...)
+    printf(f, a...)
   }
 }
 
-/**
- * Log for debugging
- */
+// Log for debugging
 func Debug(m string) {
   if config.Debug {
-    log.Print(m)
+    print(m)
   }
 }
 
-/**
- * Log an informative message to sentry
- */
+// Log an informative message to sentry
 func Infof(f string, a ...interface{}) {
   Info(fmt.Sprintf(f, a...), nil, nil)
 }
 
-/**
- * Log an informative message to sentry
- */
+// Log an informative message to sentry
 func Info(m string, tags, extra map[string]interface{}) {
   Enqueue(NewEvent(LEVEL_INFO, m, tags, extra, generateStacktrace()))
 }
 
-/**
- * Log a warning to sentry
- */
+// Log a warning to sentry
 func Warnf(f string, a ...interface{}) {
   Warn(fmt.Sprintf(f, a...), nil, nil)
 }
 
-/**
- * Log a warning to sentry
- */
+// Log a warning to sentry
 func Warn(m string, tags, extra map[string]interface{}) {
   Enqueue(NewEvent(LEVEL_WARNING, m, tags, extra, generateStacktrace()))
 }
 
-/**
- * Log an error to sentry
- */
+// Log an error to sentry
 func Errorf(f string, a ...interface{}) {
   Error(fmt.Sprintf(f, a...), nil, nil)
 }
 
-/**
- * Log an error to sentry
- */
+// Log an error to sentry
 func Error(m string, tags, extra map[string]interface{}) {
   Enqueue(NewEvent(LEVEL_ERROR, m, tags, extra, generateStacktrace()))
 }
 
-/**
- * Log a fatal error to sentry synchronously
- */
+// Log a fatal error to sentry synchronously
 func Fatalf(f string, a ...interface{}) {
   Fatal(fmt.Sprintf(f, a...), nil, nil)
 }
 
-/**
- * Log a fatal error to sentry synchronously
- */
+// Log a fatal error to sentry synchronously
 func Fatal(m string, tags, extra map[string]interface{}) {
   capture(NewEvent(LEVEL_FATAL, m, tags, extra, generateStacktrace()))
 }
 
-/**
- * Enqueue an event
- */
+// Enqueue an event
 func Enqueue(e *Event) {
-  log.Print(e.Display)
+  print(e.Display)
   if queue != nil {
     queue <- e
   }
 }
 
-/**
- * Handle sentry
- */
+// Handle sentry
 func run(q <-chan *Event) {
   for e := range q {
     capture(e)
   }
 }
 
-/**
- * Capture an event
- */
+// Capture an event
 func capture(e *Event) {
   if targets != nil {
     for _, t := range targets {
       err := t.Log(e)
       if err != nil {
-        log.Printf("[alt] Log to target {%T} failed: %v", t, err)
+        printf("alt: Log to target {%T} failed: %v", t, err)
       }
     }
   }
+}
+
+// Internal print
+func printf(f string, a ...interface{}) {
+  print(fmt.Sprintf(f, a...))
+}
+
+// Internal print
+func print(m string) {
+  if config.Timestamp {
+    m = time.Now().Format(dateFormat) +" - "+ m
+  }
+  if l := len(m); l < 1 || m[l - 1] != '\n' {
+    m += "\n"
+  }
+  fmt.Fprint(os.Stderr, m)
 }
